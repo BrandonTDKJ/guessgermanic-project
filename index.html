@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guess the Germanic Language</title>
+    <link rel="stylesheet" href="styles.css"> <!-- Link to the external CSS file -->
+</head>
+<body>
+    <div class="container">
+        <h1>Guess the <a href="germanic-languages.html" class="old-english-text">Germanic Language</a></h1>
+        <div class="mode-toggle">
+            <label class="switch">
+                <input type="checkbox" id="modeSwitch">
+                <span class="slider"></span>
+            </label>
+            <span id="modeLabel">Leisure Mode</span>
+        </div>
+        <div class="word-container">
+            <div id="word">Loading...</div>
+            <button id="hintBtn" aria-label="Hint">?</button>
+        </div>
+        <div id="timer" style="display: none;">Time left: 60s</div>
+        <div class="button-row">
+            <button id="englishBtn">English</button>
+            <button id="germanBtn">German</button>
+            <button id="dutchBtn">Dutch</button>
+        </div>
+        <div class="button-row">
+            <button id="swedishBtn">Swedish</button>
+            <button id="danishBtn">Danish</button>
+            <button id="norwegianBtn">Norwegian</button>
+        </div>
+        <div id="result-area">
+            <div id="result"></div>
+            <div id="score">Score: 0</div>
+        </div>
+        <button id="refreshBtn" aria-label="Refresh">↻</button>
+    </div>
+
+    <script>
+        const languages = ['english', 'german', 'dutch', 'swedish', 'danish', 'norwegian'];
+        let currentWord = '';
+        let currentLanguage = '';
+        let score = 0;
+        let usedWords = new Set();
+        let hintUsed = false;
+        let timer;
+        let countdownTimer;
+        let timeLeft = 60;
+        let isRaceMode = false;
+        let currentTypewriterTimeout;
+
+        // Inline the word library directly into the script
+        const wordLibrary = {
+            english: [
+                'squirrel', 'hedgehog', 'fortnight', 'quaint', 'serendipity', 'shenanigans', 'gobsmacked', 'flabbergasted',
+                'peckish', 'chuffed', 'knackered', 'blimey', 'cheerio', 'crikey', 'muppet', 'cheeky', 'dodgy', 'wonky',
+                'kerfuffle', 'codswallop', 'higgledy-piggledy', 'willy-nilly', 'topsy-turvy', 'namby-pamby', 'hobnob',
+                'discombobulate', 'cattywampus', 'skedaddle', 'brouhaha', 'hullabaloo', 'ballyhoo', 'rigmarole', 'balderdash',
+                'flummox', 'bumfuzzle', 'skedaddle', 'lollygag', 'dillydally', 'widdershins', 'flibbertigibbet',
+                'spiffy', 'swanky', 'ritzy', 'posh', 'schmooze', 'foofaraw', 'kerfuffle', 'brouhaha', 'palaver',
+                'gobbledygook', 'poppycock', 'claptrap', 'twaddle', 'piffle', 'hogwash', 'baloney', 'malarkey', 'bunkum'
+            ],
+            german: [
+                'Fernweh', 'Kummerspeck', 'Torschlusspanik', 'Weltschmerz', 'Schadenfreude', 'Zeitgeist', 'Wanderlust',
+                'Gemütlichkeit', 'Fingerspitzengefühl', 'Schnapsidee', 'Backpfeifengesicht', 'Erklärungsnot', 'Fremdschämen',
+                'Kuddelmuddel', 'Fuchsteufelswild', 'Kabelsalat', 'Kopfkino', 'Luftschloss', 'Ohrwurm', 'Pustekuchen',
+                'Quatsch', 'Schnickschnack', 'Sitzfleisch', 'Tollpatsch', 'Treppenwitz', 'Verschlimmbessern', 'Vorfreude',
+                'Waschbärbauch', 'Weichei', 'Zungenbrecher', 'Drachenfutter', 'Eselsbrücke', 'Faultier', 'Glühbirne',
+                'Handschuh', 'Klobrille', 'Nacktschnecke', 'Stinktier', 'Wasserkocher', 'Zahnfleisch', 'Brustwarze',
+                'Durchfall', 'Fingernagel', 'Gänsehaut', 'Katzenjammer', 'Liebeskummer', 'Maulwurf', 'Nilpferd',
+                'Ohrfeige', 'Pickel', 'Quark', 'Rolltreppe', 'Staubsauger', 'Tintenfisch', 'Waschbecken', 'Zahnbürste'
+            ],
+            dutch: [
+                'gezellig', 'lekker', 'borrel', 'stroopwafel', 'pindakaas', 'hagelslag', 'dropje', 'fietsen', 'polderen',
+                'uitwaaien', 'niksen', 'gedogen', 'hufterproof', 'mierenneuker', 'afbellen', 'uitbuiken', 'natafelen',
+                'uitzieken', 'wildplassen', 'kletskoek', 'oorwurm', 'epibreren', 'aprillenweer', 'hittegolf', 'voortuin',
+                'achterbaks', 'flierefluiter', 'kletskous', 'snotneus', 'mafkees', 'doerak', 'klappertanden', 'oorlelletje',
+                'slungel', 'snotaap', 'dondersteen', 'deugniet', 'kwebbelen', 'luilak', 'sloddervos', 'sloerie',
+                'slome', 'slungel', 'snotolf', 'stoethaspel', 'stommeling', 'sufferd', 'sukkel', 'sul', 'lummel',
+                'knorrepot', 'druiloor', 'droogkloot', 'flapdrol', 'frikandel', 'bitterbal', 'kapsalon', 'rookworst'
+            ],
+            swedish: [
+                'lagom', 'fika', 'smörgåsbord', 'allemansrätten', 'midsommar', 'duktig', 'orka', 'hinna', 'jobbig',
+                'sambo', 'särbo', 'svemester', 'tjänstledig', 'utbränd', 'fredagsmys', 'lördagsgodis', 'mellanmål',
+                'påtår', 'kräftskiva', 'surströmming', 'kanelbulle', 'köttbullar', 'lingon', 'falukorv', 'osthyvel',
+                'smultronställe', 'livsnjutare', 'mysa', 'hygge', 'trygghet', 'jämställdhet', 'ombudsman', 'dagis',
+                'systembolaget', 'folkhemmet', 'studiemedel', 'personnummer', 'semla', 'lussekatt', 'pepparkaka',
+                'julbord', 'snaps', 'sill', 'knäckebröd', 'gravlax', 'filmjölk', 'messmör', 'älg', 'ren',
+                'björn', 'varg', 'fjäll', 'skärgård', 'dalahäst', 'midsommarstång', 'kräftor', 'julmust', 'glögg'
+            ],
+            danish: [
+                'hygge', 'pyt', 'arbejdsglæde', 'janteloven', 'fredagsslik', 'lørdagskylling', 'påskeæg', 'fastelavnsbolle',
+                'smørrebrød', 'frikadeller', 'rødgrød', 'flæskesteg', 'remoulade', 'leverpostej', 'rugbrød', 'wienerbrød',
+                'koldskål', 'æbleskiver', 'gløgg', 'snaps', 'julefrokost', 'påskefrokost', 'pinse', 'grundlovsdag',
+                'sankthans', 'efterårsferie', 'vinterferie', 'kartoffelferien', 'skolestart', 'skolepenge', 'børnepenge',
+                'barselsorlov', 'efterløn', 'folkepension', 'andelsbolig', 'kolonihave', 'sommerhus', 'cykelsti',
+                'storbylejlighed', 'parcelhus', 'ghettoblaster', 'ørehænger', 'bagstiv', 'tømmermænd', 'brandert',
+                'bajer', 'håndbajer', 'morgenhår', 'nytårsforsæt', 'nytårstale', 'dronningens', 'nytårstorsk',
+                'kransekage', 'nytårskur', 'nytårsaften', 'julemand', 'juletræ', 'julegave', 'julekalender'
+            ],
+            norwegian: [
+                'koselig', 'dugnad', 'pålegg', 'matpakke', 'brunost', 'kvikklunsj', 'vaffel', 'lefse', 'lutefisk',
+                'rakfisk', 'pinnekjøtt', 'fenalår', 'smalahove', 'fårikål', 'lapskaus', 'raspeball', 'multekrem',
+                'troll', 'fjord', 'fjell', 'hytte', 'skiløper', 'skøyter', 'spark', 'akebrett', 'pulk', 'slalåm',
+                'telemark', 'langrenn', 'skiskytter', 'hoppbakke', 'lysløype', 'afterski', 'bunad', 'hardingfele',
+                'rosemaling', 'stavkirke', 'vikingskip', 'oljefond', 'allemannsrett', 'friluftsliv', 'russetid',
+                'julebord', 'julenisse', 'julenek', 'julebukk', 'julekake', 'julegris', 'juletrefest', 'påskekrim',
+                'påskeegg', 'påskehare', 'påskelilje', 'syttende', 'grunnlovsdag', 'nasjonaldag', 'kongehuset'
+            ]
+        };
+
+        function getRandomWord() {
+            const language = languages[Math.floor(Math.random() * languages.length)];
+            const wordList = wordLibrary[language].filter(word => !usedWords.has(word));
+            
+            if (wordList.length === 0) {
+                usedWords.clear();
+                return getRandomWord();
+            }
+            
+            const word = wordList[Math.floor(Math.random() * wordList.length)];
+            usedWords.add(word);
+            return { word, language };
+        }
+
+        function typeWriterEffect(text, elementId, speed = 100) {
+            if (currentTypewriterTimeout) {
+                clearTimeout(currentTypewriterTimeout);
+            }
+
+            let i = 0;
+            const element = document.getElementById(elementId);
+            element.textContent = '';
+
+            function type() {
+                if (i < text.length) {
+                    element.textContent += text.charAt(i);
+                    i++;
+                    currentTypewriterTimeout = setTimeout(type, speed);
+                } else {
+                    currentTypewriterTimeout = null;
+                }
+            }
+
+            type();
+        }
+
+        function updateWord() {
+            const { word, language } = getRandomWord();
+            currentWord = word;
+            currentLanguage = language;
+            
+            document.getElementById('word').textContent = word;
+            typeWriterEffect(word, 'word');
+            
+            document.getElementById('result').textContent = '';
+            hintUsed = false;
+            document.getElementById('hintBtn').disabled = false;
+            languages.forEach(lang => {
+                const button = document.getElementById(`${lang}Btn`);
+                button.disabled = false;
+                button.style.pointerEvents = 'auto';
+                button.classList.remove('disabled-button');
+            });
+        }
+
+        function getHint() {
+            if (hintUsed) return;
+
+            hintUsed = true;
+            document.getElementById('hintBtn').disabled = true;
+
+            const buttons = languages.map(lang => document.getElementById(`${lang}Btn`));
+            const shuffled = [...buttons].sort(() => 0.5 - Math.random());
+            const buttonsToDisable = shuffled.slice(0, 3);
+            
+            const correctButton = document.getElementById(`${currentLanguage}Btn`);
+            if (buttonsToDisable.includes(correctButton)) {
+                const index = buttonsToDisable.indexOf(correctButton);
+                buttonsToDisable[index] = shuffled[3];
+            }
+            
+            buttonsToDisable.forEach(button => {
+                button.disabled = true;
+                button.style.pointerEvents = 'none';
+                button.classList.add('disabled-button');
+            });
+        }
+
+        function checkAnswer(guessedLanguage) {
+            const resultElement = document.getElementById('result');
+            const scoreElement = document.getElementById('score');
+            
+            if (guessedLanguage === currentLanguage) {
+                resultElement.textContent = 'Correct!';
+                resultElement.style.color = 'green';
+                score += hintUsed ? 0.5 : 1;
+            } else {
+                resultElement.textContent = `Wrong! It's ${currentLanguage.charAt(0).toUpperCase() + currentLanguage.slice(1)}.`;
+                resultElement.style.color = 'red';
+            }
+            
+            scoreElement.textContent = `Score: ${score}`;
+
+            if (!isRaceMode) {
+                setTimeout(updateWord, 1500);
+            } else if (timeLeft > 0) {
+                setTimeout(updateWord, 1500);
+            }
+        }
+
+        function startTimer() {
+            clearInterval(timer);
+            clearInterval(countdownTimer);
+            
+            let countdown = 3;
+            const countdownElement = document.getElementById('timer');
+            countdownElement.style.display = 'block';
+            countdownElement.textContent = `Starting in: ${countdown}`;
+            
+            disableAllButtons();
+            document.getElementById('hintBtn').disabled = true;
+            
+            countdownTimer = setInterval(() => {
+                countdown--;
+                if (countdown > 0) {
+                    countdownElement.textContent = `Starting in: ${countdown}`;
+                } else {
+                    clearInterval(countdownTimer);
+                    countdownElement.textContent = 'Go!';
+                    
+                    enableAllButtons();
+                    document.getElementById('hintBtn').disabled = false;
+                    
+                    setTimeout(() => {
+                        startMainTimer();
+                    }, 1000);
+                }
+            }, 1000);
+        }
+
+        function startMainTimer() {
+            clearInterval(timer);
+            timeLeft = 60;
+            const countdownElement = document.getElementById('timer');
+            countdownElement.textContent = `Time left: ${timeLeft}s`;
+            
+            timer = setInterval(() => {
+                timeLeft--;
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    timeLeft = 0;
+                    countdownElement.textContent = `Time left: ${timeLeft}s`;
+                    endGame();
+                } else {
+                    countdownElement.textContent = `Time left: ${timeLeft}s`;
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            clearInterval(timer);
+            document.getElementById('result').textContent = `Time's up! Final Score: ${score}`;
+            document.getElementById('result').style.color = 'blue';
+            disableAllButtons();
+            document.getElementById('hintBtn').disabled = true;
+            document.getElementById('word').textContent = 'Game Over';
+        }
+
+        function disableAllButtons() {
+            languages.forEach(lang => {
+                const button = document.getElementById(`${lang}Btn`);
+                button.disabled = true;
+                button.classList.add('disabled-button');
+            });
+        }
+
+        function enableAllButtons() {
+            languages.forEach(lang => {
+                const button = document.getElementById(`${lang}Btn`);
+                button.disabled = false;
+                button.classList.remove('disabled-button');
+            });
+        }
+
+        function resetGame() {
+            clearInterval(timer);
+            clearInterval(countdownTimer);
+            score = 0;
+            usedWords.clear();
+            document.getElementById('score').textContent = 'Score: 0';
+            document.getElementById('result').textContent = '';
+            timeLeft = 60;
+            document.getElementById('timer').textContent = `Time left: ${timeLeft}s`;
+            enableAllButtons();
+            document.getElementById('hintBtn').disabled = false;
+            document.getElementById('refreshBtn').disabled = false;
+            document.getElementById('modeSwitch').disabled = false;
+
+            if (currentTypewriterTimeout) {
+                clearTimeout(currentTypewriterTimeout);
+            }
+            document.getElementById('word').textContent = '';
+
+            updateWord();
+            
+            if (isRaceMode) {
+                startTimer();
+            } else {
+                document.getElementById('timer').style.display = 'none';
+            }
+        }
+
+        function toggleMode() {
+            isRaceMode = document.getElementById('modeSwitch').checked;
+            document.getElementById('modeLabel').textContent = isRaceMode ? 'Speed Mode' : 'Leisure Mode';
+            resetGame();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('hintBtn').addEventListener('click', getHint);
+            languages.forEach(lang => {
+                document.getElementById(`${lang}Btn`).addEventListener('click', () => checkAnswer(lang));
+            });
+            document.getElementById('refreshBtn').addEventListener('click', resetGame);
+            document.getElementById('modeSwitch').addEventListener('change', toggleMode);
+            updateWord();
+        });
+    </script>
+</body>
+</html>
